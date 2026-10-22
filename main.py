@@ -1768,9 +1768,9 @@ class PigMergeWebPlugin(Star):
             self._warned_public_url = True
             try:
                 logger.warning(
-                    "[合成大猪猪] 对外地址（public_base_url）没配，正在用本机内网 IP 拼链接：%s —— "
-                    "如果插件跑在容器或内网机器上，群里发出去的链接外网是打不开的。"
-                    "请到插件设置里把「对外访问地址」填成公网地址，例如 http://1.2.3.4:6100",
+                    "[合成大猪猪] 对外地址（public_base_url）没配，正在用本机地址拼链接：%s —— "
+                    "如果插件跑在容器或内网机器上，发出去的链接在外部是打不开的。"
+                    "请到插件设置里把「对外访问地址」填成外部可访问的地址，例如 https://pig.example.com",
                     url,
                 )
             except Exception:

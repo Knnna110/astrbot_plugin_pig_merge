@@ -13,7 +13,7 @@
   },
   "public_base_url": {
     "description": "对外访问地址",
-    "hint": "群里发的链接用这个，例如 http://1.2.3.4:6100。留空则自动用本机内网 IP + 实际端口",
+    "hint": "发出去的链接用这个地址，例如 https://pig.example.com。留空则自动用本机地址 + 实际端口；外部访问所需的端口映射或反向代理请在插件之外自行处理",
     "type": "string",
     "default": ""
   },
@@ -42,7 +42,7 @@
   },
   "allow_private": {
     "description": "允许私聊要链接",
-    "hint": "关掉后只能在群聊里 @机器人 发「🐖游戏」",
+    "hint": "关掉后私聊里不发链接，只能在聊天中 @机器人 发「🐖游戏」",
     "type": "bool",
     "default": true
   },
