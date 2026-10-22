@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/AstrBot-%E2%89%A54.16-4a6cf7" alt="AstrBot >=4.16">
-  <img src="https://img.shields.io/badge/version-3.4.0-orange" alt="3.4.0">
+  <img src="https://img.shields.io/badge/version-3.5.0-orange" alt="3.5.0">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
 </p>
 
@@ -33,7 +33,7 @@
 | 出球有节制 | 只出前三级，比例跟着分数走：分越高一级猪越少；同一个等级最多连出 3 次，不给你连丢四颗小球白赚分 |
 | 音效 | 合成、落地、升天、终局都有声音，全部用 WebAudio 现场合成，不带音频文件；右上角一键静音，选择记在本地 |
 | 自定义背景 | 配置里填一张图（直链或站内路径），页面加一层柔光遮罩用，深浅色都不糊 |
-| 排行榜 | 总榜 + 本群榜（从群里点链接进来才有本群榜），可配显示人数 |
+| 排行榜 | 总榜 + 本群榜（从群里点链接进来才有本群榜），可配显示人数；聊天里发 `猪猪排行榜` 直接看，也支持模型自己调 |
 | 个人档案 | 昵称、最高分、局数、最近对局，注册后绑定当前会话 |
 | 换设备 | 六位迁移码 `猪猪认领 8K3M5Q`，官方机器人 openid 变了也能把档案搬过去 |
 | 一次性入口 | 群里发的链接只带一次性门票（默认 600 秒、点一次失效），长期凭证只存浏览器本地 |
@@ -69,9 +69,15 @@ git clone <本仓库地址> astrbot_plugin_pig_merge
 | `@机器人 🐷游戏` / `猪猪游戏` / `合成大猪猪` | 同上 |
 | `猪猪注册 小猪快跑` | 注册猪农档案并绑定当前会话，重名会提示换一个 |
 | `猪猪认领 8K3M5Q` | 换设备 / 换平台时，把旧档案迁到当前会话 |
+| `@机器人 猪猪排行榜` | 榜单：群里有成绩先给本群榜，否则给全服总榜，末尾附你自己的名次 |
 
-> 这三个指令用 AstrBot 正规的 `@filter.command` 注册；装了 `astrbot_plugin_help`
+> 这四个指令用 AstrBot 正规的 `@filter.command` 注册；装了 `astrbot_plugin_help`
 > 的话，发「帮助」生成的帮助图里能看到它们。
+
+排行榜另外挂了一个函数工具 `pig_merge_leaderboard`：群友随口问「谁分最高」
+「我在榜上第几」，模型会自己调它把榜单发出来，不用背指令。
+参数只有两个 —— `scope`（`all` 总榜 / `session` 本群 / `auto` 默认先本群）和
+`limit`（1~20，填 0 用配置里的 `board_size`）。
 
 ## 配置项
 

@@ -12,6 +12,7 @@
 
 聊天触发（必须 @ 机器人，且「🐖/🐷/猪」和「游戏」挨在一起）：
     @机器人 🐖游戏          -> 发游戏链接；没注册就提示先注册
+    猪猪排行榜                -> 总榜 / 本群榜 + 自己的名次
     猪猪注册 名字            -> 注册猪农档案，绑定当前会话的 UMO
 
 输出优先走 Markdown（QQ 官方机器人），其余平台自动降级成纯文本。
@@ -49,7 +50,7 @@ except Exception:  # pragma: no cover
 
 
 PLUGIN_NAME = "astrbot_plugin_pig_merge"
-PLUGIN_VERSION = "3.4.0"
+PLUGIN_VERSION = "3.5.0"
 
 MD_PLATFORMS = {"qq_official", "qq_official_webhook"}
 
@@ -94,6 +95,12 @@ REGISTER_RE = re.compile(
 )
 CLAIM_CMD_RE = re.compile(
     r"^\s*(?:猪猪认领|认领猪猪|猪猪迁移|猪认领)\s*[:：]?\s*(?P<code>[0-9A-Za-z]{4,10})?\s*$",
+    re.IGNORECASE,
+)
+# 排行榜：允许「猪猪排行榜」「🐖排行榜」「猪榜」「合成大猪猪 排行榜」这类写法；
+# 必须带「猪」相关前缀，免得把群里别家的「排行榜」抢过来
+BOARD_CMD_RE = re.compile(
+    r"^\s*(?:@\S+\s*)?(?:合成大猪猪|猪猪|猪|🐖|🐷)\s*(?:排行榜|排行|榜单|榜)\s*$",
     re.IGNORECASE,
 )
 
@@ -1736,7 +1743,7 @@ class PigMergeWebPlugin(Star):
         self.default_theme = str(self._cfg("default_theme", "auto") or "auto")
         # 自定义背景图：只认 http(s) 直链和站内绝对路径，别的一律当没配
         raw_bg = str(self._cfg("bg_image", "") or "").strip()[:1024]
-        self.bg_image = raw_bg if re.match(r"^(https?://|/)", raw_bg) else 
+        self.bg_image = raw_bg if re.match(r"^(https?://|/)", raw_bg) else ""
         self.session_link = bool(self._cfg("session_link", True))
         try:
             ttl = int(self._cfg("link_ttl", 600))
@@ -1954,6 +1961,48 @@ class PigMergeWebPlugin(Star):
             text = self._crash_text(exc)
         yield self._say(event, text)
 
+    @filter.command(
+        "猪猪排行榜",
+        alias={
+            "猪猪排行",
+            "猪猪榜",
+            "猪榜",
+            "🐖排行榜",
+            "🐷排行榜",
+            "猪宝排行榜",
+            "pig排行榜",
+        },
+    )
+    async def cmd_leaderboard(self, event: AstrMessageEvent):
+        """🏆 看「合成大猪猪」的排行榜"""
+        event.stop_event()
+        event.should_call_llm(False)
+        try:
+            text = await self._leaderboard_text(event, "auto", 0)
+        except Exception as exc:
+            text = self._crash_text(exc)
+        yield self._say(event, text)
+
+    @filter.llm_tool(name="pig_merge_leaderboard")
+    async def tool_leaderboard(
+        self, event: AstrMessageEvent, scope: str = "auto", limit: int = 0
+    ):
+        """查看「合成大猪猪」网页小游戏的排行榜，并把榜单直接发到当前会话。
+
+        用户想看看榜上谁分最高、自己排第几、群里谁最厉害的时候用这个工具。
+        榜单是现成的成绩数据，不要自己编分数。
+
+        Args:
+            scope(string): 榜单范围。all 是全服总榜；session 只看当前群（私聊无效）；auto 在群里有成绩时先给本群榜，默认 auto
+            limit(number): 想列前几名，1 到 20；填 0 或不填就用插件配置的人数
+        """
+        try:
+            text = await self._leaderboard_text(event, scope, limit)
+        except Exception as exc:
+            text = self._crash_text(exc)
+        yield self._say(event, text)
+        event.stop_event()
+
     async def _game_text(self, event: AstrMessageEvent) -> str:
         if not self.allow_private and not event.get_group_id():
             return "入口链接只能在群里要，私聊里我不发。"
@@ -1974,6 +2023,16 @@ class PigMergeWebPlugin(Star):
             event.should_call_llm(False)
             try:
                 text = await self._claim_text(event, claim.group("code") or "")
+            except Exception as exc:
+                text = self._crash_text(exc)
+            yield self._say(event, text)
+            return
+
+        if BOARD_CMD_RE.match(text) and (not event.get_group_id() or self._at_bot(event)):
+            event.stop_event()
+            event.should_call_llm(False)
+            try:
+                text = await self._leaderboard_text(event, "auto", 0)
             except Exception as exc:
                 text = self._crash_text(exc)
             yield self._say(event, text)
@@ -2068,6 +2127,92 @@ class PigMergeWebPlugin(Star):
                 f"{fmt_int(row.get('best'))}"
             )
         return " ｜ ".join(parts)
+
+    async def _leaderboard_text(
+        self, event: AstrMessageEvent, scope: str = "auto", limit: int = 0
+    ) -> str:
+        """排行榜正文：总榜 / 本群榜，外加「你排第几」。"""
+        if self.store is None:
+            return "猪圈还没搭好，等插件加载完再叫我一声。"
+
+        wanted = str(scope or "auto").strip().lower()
+        try:
+            size = int(limit or 0)
+        except Exception:
+            size = 0
+        if size <= 0:
+            size = int(getattr(self, "board_size", 10) or 10)
+        size = max(1, min(size, 20))
+
+        umo = event.unified_msg_origin or ""
+        session = umo if (self.session_link and event.get_group_id()) else ""
+
+        if wanted in {"session", "group", "群", "本群"}:
+            mode = "session" if session else "all"
+        elif wanted in {"all", "global", "总榜", "全服"}:
+            mode = "all"
+        else:  # auto：群里有人交过分就先给本群榜
+            mode = "session" if session else "all"
+
+        data = await asyncio.to_thread(
+            self.store.board, mode, session if mode == "session" else "", size
+        )
+        rows = data.get("rows") or []
+        if mode == "session" and not rows:
+            # 群里还没人交分，退回总榜，别让人对着空榜发呆
+            mode = "all"
+            data = await asyncio.to_thread(self.store.board, "all", "", size)
+            rows = data.get("rows") or []
+
+        title = "本群榜" if mode == "session" else "全服总榜"
+        lines = [
+            "🐖 **合成大猪猪 · 排行榜**",
+            f"> {title}，最高分说话。",
+            "---",
+        ]
+        medals = ["🥇", "🥈", "🥉"]
+        for idx, row in enumerate(rows):
+            mark = medals[idx] if idx < 3 else f"{idx + 1}."
+            name = clean_name(row.get("name"), "无名猪农")
+            bits = [f"{fmt_int(row.get('best'))} 分"]
+            level = int(row.get("best_level") or 0)
+            if level:
+                bits.append(self._pig(level))
+            plays = int(row.get("plays") or 0)
+            if plays:
+                bits.append(f"{plays} 局")
+            lines.append(f"{mark} **{name}** · " + " · ".join(bits))
+        if not rows:
+            lines.append("榜上还空着，第一头猪王等你来当。")
+        lines.append("---")
+
+        me = await self._player_of_chat(umo, self._uid(event))
+        if me:
+            my_name = clean_name(me.get("chat_name") or me.get("name"), "猪农")
+            stat: Optional[Dict[str, Any]] = None
+            player_id = str(me.get("player_id") or "")
+            if player_id:
+                try:
+                    stat = await asyncio.to_thread(self.store.player, player_id)
+                except Exception:
+                    stat = None
+            my_best = int((stat or {}).get("best") or me.get("best") or 0)
+            rank = int((stat or {}).get("rank") or 0)
+            total = int((stat or {}).get("total") or 0)
+            if my_best > 0:
+                tail = f" · 总榜第 **{rank}** / {fmt_int(total)}" if rank else ""
+                lines.append(f"👤 **{my_name}** · 最高 **{fmt_int(my_best)}** 分{tail}")
+            else:
+                lines.append(f"👤 **{my_name}** · 还没交过成绩，去开一罐")
+        else:
+            lines.append("👤 你还没建档案，回一句 `猪猪注册 你的名字` 就能上榜。")
+
+        lines.append(
+            f"🏁 共 {fmt_int(data.get('players'))} 头猪农 · "
+            f"{fmt_int(data.get('runs'))} 局"
+        )
+        lines.append("📌 想开局就 @我 发「🐖游戏」要一条链接。")
+        return "\n".join(lines)
 
     async def _entry_text(self, event: AstrMessageEvent) -> str:
         if self.store is None:
