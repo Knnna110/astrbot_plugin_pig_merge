@@ -49,7 +49,7 @@ except Exception:  # pragma: no cover
 
 
 PLUGIN_NAME = "astrbot_plugin_pig_merge"
-PLUGIN_VERSION = "3.3.1"
+PLUGIN_VERSION = "3.4.0"
 
 MD_PLATFORMS = {"qq_official", "qq_official_webhook"}
 
@@ -1185,6 +1185,8 @@ class PigWebServer:
                 "ok": True,
                 "version": PLUGIN_VERSION,
                 "default_theme": self.plugin.default_theme,
+                "bg_image": getattr(self.plugin, "bg_image", ""),
+                "max_level": MAX_LEVEL,
                 "session_scope": True,
             }
         )
@@ -1732,6 +1734,9 @@ class PigMergeWebPlugin(Star):
         except Exception:
             self.board_size = 10
         self.default_theme = str(self._cfg("default_theme", "auto") or "auto")
+        # 自定义背景图：只认 http(s) 直链和站内绝对路径，别的一律当没配
+        raw_bg = str(self._cfg("bg_image", "") or "").strip()[:1024]
+        self.bg_image = raw_bg if re.match(r"^(https?://|/)", raw_bg) else 
         self.session_link = bool(self._cfg("session_link", True))
         try:
             ttl = int(self._cfg("link_ttl", 600))

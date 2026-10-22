@@ -4,11 +4,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/AstrBot-%E2%89%A54.16-4a6cf7" alt="AstrBot >=4.16">
-  <img src="https://img.shields.io/badge/version-3.3.1-orange" alt="3.3.1">
+  <img src="https://img.shields.io/badge/version-3.4.0-orange" alt="3.4.0">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
 </p>
 
-<p align="center">群里 @机器人 发一句「🐖游戏」，把一条一次性链接丢给群友；<br>
+<p align="center">在群里 @机器人 发一句「🐖游戏」，机器人回一条一次性链接；<br>
 点开就是浏览器里的物理合成小游戏，分数自动记进档案，还能拼总榜和本群榜。</p>
 
 ---
@@ -18,7 +18,7 @@
 一个 AstrBot 插件，把「合成大西瓜」那套玩法做成**群聊入口 + 独立网页**：
 
 - **玩游戏不用装东西** —— 链接点开就是网页，手机、平板、电脑浏览器都能玩，支持触屏、鼠标和键盘。
-- **统计都在服务器里** —— 分数、局数、个人最高分存在插件自己的 SQLite 里，换浏览器也不丢（设了口令就能登回来）。
+- **统计都在你自己的机器上** —— 分数、局数、个人最高分存在插件自己的 SQLite 里，换浏览器也不丢（设了口令就能登回来）。
 - **管理台直接嵌在面板里** —— 不用另开端口，看玩家、看对局、清分删档、改端口都在 AstrBot 面板里点。
 
 游戏页是插件自己起的一个轻量 HTTP 服务（默认 `6100`，被占用时在 `6100~6110` 内自动顺延），
@@ -30,11 +30,14 @@
 |---|---|
 | 九级合成 | 🐽小猪崽 → 🐷苹果猪 → 🐖大懒猪 → 🐗野猪 → 🥓培根 → 🍢烤猪串 → 🍔猪排堡 → 👑锁冠猪王 → ✨猪神，每级都是圆形贴图球 |
 | 真物理 | 自带圆体碰撞引擎（重力 / 摩擦 / 迭代求解），过危险线久了就判负，罐子真的会满 |
+| 出球有节制 | 只出前三级，比例跟着分数走：分越高一级猪越少；同一个等级最多连出 3 次，不给你连丢四颗小球白赚分 |
+| 音效 | 合成、落地、升天、终局都有声音，全部用 WebAudio 现场合成，不带音频文件；右上角一键静音，选择记在本地 |
+| 自定义背景 | 配置里填一张图（直链或站内路径），页面加一层柔光遮罩用，深浅色都不糊 |
 | 排行榜 | 总榜 + 本群榜（从群里点链接进来才有本群榜），可配显示人数 |
 | 个人档案 | 昵称、最高分、局数、最近对局，注册后绑定当前会话 |
 | 换设备 | 六位迁移码 `猪猪认领 8K3M5Q`，官方机器人 openid 变了也能把档案搬过去 |
 | 一次性入口 | 群里发的链接只带一次性门票（默认 600 秒、点一次失效），长期凭证只存浏览器本地 |
-| 彩蛋 | 两个 ✨猪神 撞一起会一起升天，直接加 5000 分 |
+| 彩蛋 | ✨猪神 已是顶级，两颗撞一起会一起升天，直接加 5000 分 |
 | 深浅色 | 跟随系统 / 手动切换，选择记在本地 |
 | 消息降级 | QQ 官方机器人走原生 Markdown，其他平台自动降级纯文本 |
 | 面板管理台 | 服务状态、实际端口、玩家查询、清分删档、对局记录、运行设置 |
@@ -43,7 +46,7 @@
 
 ```bash
 cd /path/to/AstrBot/data/plugins
-git clone https://github.com/Knnna110/astrbot_plugin_pig_merge.git
+git clone <本仓库地址> astrbot_plugin_pig_merge
 ```
 
 然后在 AstrBot 面板 → 插件 → 重载（或重启 AstrBot）。
@@ -80,6 +83,7 @@ git clone https://github.com/Knnna110/astrbot_plugin_pig_merge.git
 | `host` | string | `0.0.0.0` | 游戏页监听地址，反代/局域网都要连就别改 |
 | `port` | int | `6100` | 游戏页端口，范围 6100~6110，占用自动顺延 |
 | `public_base_url` | string | 空 | **对外地址**，如 `http://1.2.3.4:6100`；留空会用内网 IP，外网打不开 |
+| `bg_image` | string | 空 | 自定义背景图，填 `http(s)://` 直链或站内路径；留空用默认渐变 |
 | `markdown_mode` | string | `auto` | `auto` 只有 QQ 官方用 Markdown；`always` / `never` 强制 |
 | `board_size` | int | `10` | 聊天里报总榜时列几个人（3~20） |
 | `session_link` | bool | `true` | 链接带会话标记，网页里能看本群榜 |
@@ -127,8 +131,15 @@ git clone https://github.com/Knnna110/astrbot_plugin_pig_merge.git
 QQ 官方机器人给的是 openid，不是 QQ 号。这是平台特性，同一个人在同一机器人下是稳定的，
 想换平台就用迁移码搬档案。
 
+**两颗猪神撞一起没反应？**
+3.4.0 起已经修好了：顶级同样参与合并判定，撞上就一起升天加 5000 分。
+如果还是没反应，先确认浏览器缓存里的 `physics.js` 是新的（强制刷新一次）。
+
 **罐子空空如也 / 画布一片白？**
 部分内置浏览器内核不支持 `aspect-ratio`，v3.1.0 起已用 JS 兜底；还白就先换浏览器（Chrome / Safari / 微信内置均可）。
+
+**没有声音？**
+浏览器要求先有一次点击才能出声，先点一下画面再丢猪；右上角 🔊 可以随时开关。
 
 ## 目录结构
 
@@ -141,7 +152,7 @@ astrbot_plugin_pig_merge/
 ├─ web/                     # 游戏页静态资源（独立端口）
 │  ├─ index.html
 │  ├─ style.css
-│  ├─ game.js               # 玩法、渲染、档案与登录
+│  ├─ game.js               # 玩法、渲染、音效、档案与登录
 │  ├─ physics.js            # 圆体碰撞物理
 │  └─ pigs/l1~l9.png        # 九级猪猪贴图
 ├─ views/admin/             # 面板内管理台
@@ -151,6 +162,7 @@ astrbot_plugin_pig_merge/
 ```
 
 想换猪猪的图：直接替换 `web/pigs/l1~l9.png`，建议 240×240 透明底 PNG，圆形裁切会自动套上。
+加新等级也不难：`web/physics.js` 里的 `LEVELS` 是纯数据表，往后追加一项、补一张 `l10.png` 即可。
 
 ## 更新日志
 
@@ -158,6 +170,4 @@ astrbot_plugin_pig_merge/
 
 ## 许可
 
-[MIT](LICENSE) © 2026 Knnna110 & DeepSeek娘
-
-素材（九级猪猪贴图、logo）随仓库一起以 MIT 提供，可自由替换修改。
+[MIT](LICENSE)。素材（九级猪猪贴图、logo）随仓库一起以 MIT 提供，可自由替换修改。

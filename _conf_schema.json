@@ -74,5 +74,11 @@
     "hint": "群里发的链接只带一次性门票，默认 600 秒、点一次就作废。给 60~86400",
     "type": "int",
     "default": 600
+  },
+  "bg_image": {
+    "description": "自定义背景图",
+    "hint": "填图片直链（http(s):// 开头）或站内路径，例如 https://example.com/bg.jpg；留空用默认渐变背景",
+    "type": "string",
+    "default": ""
   }
 }

@@ -8,14 +8,27 @@
   var CONFIG = {
     width: 420,
     height: 620,
-    dangerLine: 120,
+    // 罐口：越小越靠上，留给玩家的空间越多。
+    // v3.4.0 之前是 120，顶部一大片用不上，手感像「矮罐子」，这里收到 88。
+    dangerLine: 88,
     gravity: 2200,
     restitution: 0.08,
-    wallRestitution: 0.22,
-    iterations: 5,
+    wallRestitution: 0.18,
+    // 切向摩擦：越大越"黏"，堆起来的猪不会一碰就滑开，罐子更容易堆满
+    friction: 0.18,
+    // 贴墙 / 落地后的横向阻尼，越小越不容易被挤着滑走
+    wallFriction: 0.72,
+    // 慢速球的额外阻尼（每秒），让猪堆"压得住"
+    slowDamp: 2.6,
+    // 分离重叠时的位置修正比例，小一点更软、更不容易弹开
+    splitCorrection: 0.78,
+    // 合并判定放宽比例：贴图有描边/留白，视觉上贴住了但数值差一两像素时也能合上
+    mergeTolerance: 1.02,
+    iterations: 6,
     maxBalls: 110,
     maxSpeed: 4200,
-    mergePerStep: 40
+    mergePerStep: 40,
+    landPerStep: 3
   };
 
   /**
@@ -56,6 +69,13 @@
     this.restitution = o.restitution != null ? o.restitution : CONFIG.restitution;
     this.wallRestitution =
       o.wallRestitution != null ? o.wallRestitution : CONFIG.wallRestitution;
+    this.friction = o.friction != null ? o.friction : CONFIG.friction;
+    this.wallFriction = o.wallFriction != null ? o.wallFriction : CONFIG.wallFriction;
+    this.slowDamp = o.slowDamp != null ? o.slowDamp : CONFIG.slowDamp;
+    this.splitCorrection =
+      o.splitCorrection != null ? o.splitCorrection : CONFIG.splitCorrection;
+    this.mergeTolerance =
+      o.mergeTolerance != null ? o.mergeTolerance : CONFIG.mergeTolerance;
     this.iterations = o.iterations || CONFIG.iterations;
     this.maxBalls = o.maxBalls || CONFIG.maxBalls;
 
@@ -67,6 +87,7 @@
     this.merges = 0;
     this.overTime = 0;
     this._mergeBudget = CONFIG.mergePerStep;
+    this._landBudget = CONFIG.landPerStep;
   }
 
   World.prototype.addBall = function (x, y, level) {
@@ -103,6 +124,7 @@
     dt = Math.min(Math.max(dt, 0), 1 / 30);
     this.time += dt;
     this._mergeBudget = CONFIG.mergePerStep;
+    this._landBudget = CONFIG.landPerStep;
 
     var balls = this.balls;
     var i;
@@ -124,6 +146,12 @@
       }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
+      // 慢下来以后额外阻尼：压在堆里的猪别一直"打滑"
+      if (Math.abs(b.vx) < 90 && Math.abs(b.vy) < 90) {
+        var slow = Math.pow(0.35, this.slowDamp * dt);
+        b.vx *= slow;
+        b.vy *= slow;
+      }
       this._clampWalls(b);
     }
 
@@ -151,10 +179,16 @@
       if (b.vx > 0) b.vx = -b.vx * this.wallRestitution;
     }
     if (b.y + b.r > this.height) {
+      var impact = b.vy;
       b.y = this.height - b.r;
       if (b.vy > 0) b.vy = -b.vy * this.restitution;
-      b.vx *= 0.86;
+      b.vx *= this.wallFriction;
       if (Math.abs(b.vy) < 34) b.vy = 0;
+      // 落地音效用：只报真正砸下来的那一下，且每步最多报几次
+      if (impact > 620 && this._landBudget > 0) {
+        this._landBudget--;
+        this.events.push({ type: 'land', x: b.x, y: b.y, power: impact });
+      }
     }
   };
 
@@ -162,13 +196,16 @@
     var balls = this.balls;
     for (var i = 0; i < balls.length; i++) {
       var a = balls[i];
-      if (a.dead || a.level >= MAX_LEVEL) continue;
+      if (a.dead) continue;
       for (var j = i + 1; j < balls.length; j++) {
         var b = balls[j];
         if (b.dead || b.level !== a.level) continue;
         var dx = b.x - a.x;
         var dy = b.y - a.y;
-        var rr = a.r + b.r;
+        // 贴图是圆形裁切 + 描边，视觉上的边比碰撞半径"胖"一点点，
+        // 所以这里给一点容差，别让玩家看着明明贴上了却不合。
+        // 最高级（猪神）也照样判合并 —— 两颗撞一起走 vanish 分支一起升天。
+        var rr = (a.r + b.r) * this.mergeTolerance;
         if (dx * dx + dy * dy > rr * rr) continue;
         if (this._mergeBudget <= 0) return;
         this._mergeBudget--;
@@ -246,10 +283,10 @@
           var invSum = invA + invB;
           var overlap = rr - d;
 
-          a.x -= nx * overlap * (invA / invSum) * 0.9;
-          a.y -= ny * overlap * (invA / invSum) * 0.9;
-          b.x += nx * overlap * (invB / invSum) * 0.9;
-          b.y += ny * overlap * (invB / invSum) * 0.9;
+          a.x -= nx * overlap * (invA / invSum) * this.splitCorrection;
+          a.y -= ny * overlap * (invA / invSum) * this.splitCorrection;
+          b.x += nx * overlap * (invB / invSum) * this.splitCorrection;
+          b.y += ny * overlap * (invB / invSum) * this.splitCorrection;
 
           var rvx = b.vx - a.vx;
           var rvy = b.vy - a.vy;
@@ -265,7 +302,7 @@
           var tx = -ny;
           var ty = nx;
           var vt = rvx * tx + rvy * ty;
-          var jt = (-vt * 0.08) / invSum;
+          var jt = (-vt * this.friction) / invSum;
           a.vx -= jt * invA * tx;
           a.vy -= jt * invA * ty;
           b.vx += jt * invB * tx;

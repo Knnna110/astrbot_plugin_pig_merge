@@ -38,6 +38,7 @@
     nameInput: $('nameInput'),
     bindHint: $('bindHint'),
     themeBtn: $('themeBtn'),
+    soundBtn: $('soundBtn'),
     helpBtn: $('helpBtn'),
     helpModal: $('helpModal'),
     helpClose: $('helpClose'),
@@ -68,7 +69,8 @@
     best: 'pig_best_local',
     token: 'pig_player_token',
     guest: 'pig_guest_mode',
-    theme: 'pig_theme'
+    theme: 'pig_theme',
+    sound: 'pig_sound'
   };
 
   var state = {
@@ -150,11 +152,41 @@
     return '猪农' + (1000 + Math.floor(Math.random() * 9000));
   }
 
+  /**
+   * 出球等级：只出 1~3 级，但比例跟着分数走。
+   * 分数越高一级猪越少、三级猪越多，别让整局都在白送小球；
+   * 另外同一等级最多连出 3 次（见 randomLevel），免得连着 4 颗一级猪白给。
+   */
+  var spawn = { streak: 0, last: 0 };
+
+  function spawnWeights() {
+    var t = clamp(state.score / 8000, 0, 1);
+    return [0.66 - 0.22 * t, 0.26 + 0.12 * t, 0.08 + 0.10 * t];
+  }
+
   function randomLevel() {
-    var roll = Math.random();
-    if (roll < 0.68) return 1;
-    if (roll < 0.93) return 2;
-    return 3;
+    var w = spawnWeights();
+    // 同一个等级连出 3 次就够够的了，第 4 次强制换一个
+    if (spawn.streak >= 3) w[spawn.last - 1] = 0;
+    var total = w[0] + w[1] + w[2];
+    var roll = Math.random() * total;
+    var level = 0;
+    for (var i = 0; i < w.length; i++) {
+      roll -= w[i];
+      if (roll < 0) {
+        level = i + 1;
+        break;
+      }
+    }
+    // 浮点兜底：万一没落到任何一档，取剩下概率最大的
+    if (!level) level = w[2] > 0 ? 3 : w[1] > 0 ? 2 : 1;
+    if (level === spawn.last) {
+      spawn.streak += 1;
+    } else {
+      spawn.last = level;
+      spawn.streak = 1;
+    }
+    return level;
   }
 
   function pigIconHtml(spec) {
@@ -169,9 +201,12 @@
 
   function refreshChain() {
     if (!els.chainLine) return;
-    els.chainLine.innerHTML = LEVELS.map(function (spec) {
+    var html = LEVELS.map(function (spec) {
       return pigIconHtml(spec);
     }).join('<i class="chain-sep">›</i>');
+    // 最后一级标个顶，省得有人以为天使猪后面还有
+    html += '<i class="chain-sep">›</i><b class="chain-max">顶</b>';
+    els.chainLine.innerHTML = html;
   }
 
   function levelText(level) {
@@ -194,6 +229,105 @@
       return navigator.clipboard.writeText(text);
     }
     return Promise.reject(new Error('no clipboard'));
+  }
+
+  /* ================= 音效 ================= */
+
+  // 全部用 WebAudio 现场合成，不带任何音频文件：不占体积、不用管版权。
+  var sound = { on: lsGet(LS.sound, 'on') !== 'off', ctx: null, master: null };
+
+  function ensureAudio() {
+    if (sound.ctx) return sound.ctx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try {
+      sound.ctx = new AC();
+      sound.master = sound.ctx.createGain();
+      sound.master.gain.value = 0.6;
+      sound.master.connect(sound.ctx.destination);
+    } catch (e) {
+      sound.ctx = null;
+    }
+    return sound.ctx;
+  }
+
+  function beep(opts) {
+    if (!sound.on) return;
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === 'suspended' && ctx.resume) {
+      try { ctx.resume(); } catch (e) { /* ignore */ }
+    }
+    var t0 = ctx.currentTime;
+    var dur = Math.max(0.03, opts.dur);
+    var from = Math.max(20, opts.from);
+    var to = Math.max(20, opts.to);
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = opts.type || 'sine';
+    osc.frequency.setValueAtTime(from, t0);
+    osc.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(opts.vol || 0.12, t0 + Math.min(0.02, dur * 0.3));
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain);
+    gain.connect(sound.master);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.03);
+  }
+
+  var sfx = {
+    drop: function () { beep({ type: 'sine', from: 280, to: 130, dur: 0.1, vol: 0.1 }); },
+    land: function (power) {
+      var vol = Math.min(0.14, 0.03 + power / 16000);
+      beep({ type: 'triangle', from: 170, to: 92, dur: 0.07, vol: vol });
+    },
+    merge: function (level) {
+      var base = 300 * Math.pow(1.1, Math.max(0, level - 2));
+      beep({ type: 'triangle', from: base, to: base * 1.9, dur: 0.13, vol: 0.12 });
+      beep({ type: 'sine', from: base * 2, to: base * 3.1, dur: 0.09, vol: 0.05 });
+    },
+    vanish: function () {
+      [523, 659, 784, 1047].forEach(function (f, i) {
+        setTimeout(function () {
+          beep({ type: 'sine', from: f, to: f * 1.5, dur: 0.5, vol: 0.09 });
+        }, i * 90);
+      });
+    },
+    over: function () { beep({ type: 'sawtooth', from: 300, to: 80, dur: 0.65, vol: 0.09 }); }
+  };
+
+  function applySound(on) {
+    sound.on = !!on;
+    lsSet(LS.sound, sound.on ? 'on' : 'off');
+    if (els.soundBtn) {
+      els.soundBtn.textContent = sound.on ? '🔊' : '🔇';
+      els.soundBtn.title = sound.on ? '音效开（点一下静音）' : '音效关（点一下打开）';
+      els.soundBtn.setAttribute('aria-label', els.soundBtn.title);
+    }
+  }
+
+  function toggleSound() {
+    applySound(!sound.on);
+    if (sound.on) sfx.merge(3);
+    toast(sound.on ? '音效开了' : '静音了');
+  }
+
+  /** 服务端配置：背景图 + 默认主题（本地选过主题的话以本地为准） */
+  async function loadServerConfig() {
+    try {
+      var res = await fetch('/api/config');
+      var data = await res.json();
+      if (!data || !data.ok) return;
+      if (data.bg_image) applyBackground(data.bg_image);
+      var saved = lsGet(LS.theme, '');
+      if (saved !== 'dark' && saved !== 'light') {
+        var want = data.default_theme;
+        applyTheme(want === 'dark' || want === 'light' ? want : autoTheme(), false);
+      }
+    } catch (err) {
+      /* 拿不到就按默认来 */
+    }
   }
 
   /* ================= 主题 ================= */
@@ -239,6 +373,18 @@
 
   function toggleTheme() {
     applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+  }
+
+  /**
+   * 自定义背景：后台配了图就用图，外加一层柔和遮罩，别把界面糊住。
+   * 只认 http(s) 和站内绝对路径，别的（data:、javascript: 之类）一律不碰。
+   */
+  function applyBackground(url) {
+    var safe = String(url == null ? '' : url).trim();
+    if (!safe) return;
+    if (!/^(https?:\/\/[^\s"')]+|\/[^\s"')]*)$/i.test(safe)) return;
+    document.body.style.setProperty('--bg-image', 'url("' + safe.replace(/"/g, '%22') + '")');
+    document.body.classList.add('has-bg');
   }
 
   function ballColors(hue, dark) {
@@ -606,15 +752,23 @@
   }
 
   function handleMerge(event) {
+    if (event.type === 'land') {
+      sfx.land(event.power || 0);
+      return;
+    }
+
     state.score += event.gain;
     state.merges += 1;
     updateScore();
 
     var spec = LEVELS[event.level - 1] || LEVELS[0];
     if (event.type === 'vanish') {
+      sfx.vanish();
       spawnBurst(event.x, event.y, 46, 16);
       spawnFloat(event.x, event.y - 20, '+' + fmt(event.gain), '#f0a92a');
+      spawnFloat(event.x, event.y - 48, '升天', '#f0a92a');
     } else {
+      sfx.merge(event.level);
       spawnBurst(event.x, event.y, spec.hue, event.level);
       spawnFloat(
         event.x,
@@ -635,6 +789,8 @@
     state.over = false;
     state.running = true;
     state.startedAt = Date.now();
+    spawn.streak = 0;
+    spawn.last = 0;
     state.currentLevel = randomLevel();
     state.nextLevel = randomLevel();
     state.aimX = BW / 2;
@@ -658,6 +814,7 @@
     var spec = LEVELS[level - 1];
     var x = clamp(state.aimX, spec.r + 1, BW - spec.r - 1);
     state.world.drop(x, level);
+    sfx.drop();
     state.lastDrop = now;
     state.drops += 1;
     if (state.drops >= 3) els.hint.classList.add('hidden');
@@ -670,6 +827,7 @@
   function endGame() {
     state.over = true;
     state.running = false;
+    sfx.over();
     var duration = Math.max(1, Math.round((Date.now() - state.startedAt) / 1000));
     var top = state.world.topLevel();
 
@@ -892,6 +1050,7 @@
 
     els.canvas.addEventListener('pointerdown', function (ev) {
       if (state.over) return;
+      ensureAudio(); // 手势里唤醒音频上下文，不然 iOS 一声都不响
       state.aimX = pointerX(ev);
       state.pressed = true;
       if (els.canvas.setPointerCapture) {
@@ -941,6 +1100,8 @@
     els.restartBtn.addEventListener('click', newGame);
     els.shareBtn.addEventListener('click', copyReport);
     els.themeBtn.addEventListener('click', toggleTheme);
+    if (els.soundBtn) els.soundBtn.addEventListener('click', toggleSound);
+    applySound(sound.on);
     els.helpBtn.addEventListener('click', function () {
       els.helpModal.classList.remove('hidden');
     });
@@ -1367,6 +1528,7 @@
     // 主题
     var savedTheme = lsGet(LS.theme, '');
     applyTheme(savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : autoTheme(), false);
+    loadServerConfig();
     if (window.matchMedia) {
       var mq = window.matchMedia('(prefers-color-scheme: dark)');
       var onChange = function () {
