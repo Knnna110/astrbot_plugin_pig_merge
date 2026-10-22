@@ -43,7 +43,7 @@
 
 ```bash
 cd /path/to/AstrBot/data/plugins
-git clone https://github.com/REPLACE_ME/astrbot_plugin_pig_merge.git
+git clone https://github.com/Knnna110/astrbot_plugin_pig_merge.git
 ```
 
 然后在 AstrBot 面板 → 插件 → 重载（或重启 AstrBot）。
@@ -158,6 +158,6 @@ astrbot_plugin_pig_merge/
 
 ## 许可
 
-[MIT](LICENSE) © 2026 idKang & DeepSeek娘
+[MIT](LICENSE) © 2026 Knnna110 & DeepSeek娘
 
 素材（九级猪猪贴图、logo）随仓库一起以 MIT 提供，可自由替换修改。
