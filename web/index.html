@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>合成大猪猪</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🐖</span>
+      <div class="brand-text">
+        <h1>合成大猪猪</h1>
+        <p>把猪丢进罐子，同级相撞就变肥</p>
+      </div>
+    </div>
+    <div class="tools">
+      <button id="themeBtn" class="icon-btn" type="button" title="切换深浅色" aria-label="切换深浅色">🌙</button>
+      <button id="helpBtn" class="icon-btn" type="button" title="玩法" aria-label="玩法">？</button>
+      <button id="restartBtn" class="btn ghost" type="button">重开</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage-wrap">
+      <div class="hud">
+        <div class="hud-item">
+          <span class="hud-label">分数</span>
+          <strong id="score" class="hud-value">0</strong>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">最高</span>
+          <strong id="best" class="hud-value">0</strong>
+        </div>
+        <div class="hud-item next">
+          <span class="hud-label">下一个</span>
+          <span class="next-box">
+            <span id="nextPig" class="next-pig">🐽</span>
+            <span id="nextName" class="next-name">小猪崽</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <canvas id="board" width="420" height="620"></canvas>
+        <div class="overlay hidden" id="overlay">
+          <div class="card">
+            <p class="card-kicker">本局结束</p>
+            <h2 id="ovTitle">罐子炸了</h2>
+            <p class="ov-score"><strong id="ovScore">0</strong><span>分</span></p>
+            <p class="ov-meta" id="ovMeta">正在记分…</p>
+            <div class="ov-actions">
+              <button class="btn" id="againBtn" type="button">再来一局</button>
+              <button class="btn ghost" id="shareBtn" type="button">复制战报</button>
+            </div>
+          </div>
+        </div>
+        <div class="hint" id="hint">点/拖动瞄准，松手丢猪 · ← → 瞄准，空格丢下</div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>猪王榜</h2>
+          <div class="tabs" role="tablist">
+            <button class="tab active" data-scope="all" type="button">总榜</button>
+            <button class="tab" data-scope="session" type="button" id="sessionTab">本群</button>
+          </div>
+        </div>
+        <ol class="rank" id="rankList"></ol>
+        <p class="empty hidden" id="rankEmpty">还没有猪农上榜，第一口就等你了。</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>我的</h2></div>
+        <label class="field">
+          <span>昵称</span>
+          <input id="nameInput" type="text" maxlength="12" autocomplete="nickname" spellcheck="false" placeholder="给自己起个名">
+        </label>
+        <dl class="stats">
+          <div><dt>个人最高</dt><dd id="meBest">—</dd></div>
+          <div><dt>总榜排名</dt><dd id="meRank">—</dd></div>
+          <div><dt>下过局数</dt><dd id="mePlays">—</dd></div>
+        </dl>
+        <div class="bind">
+          <p class="bind-hint" id="bindHint">在群里 @我 发「🐖游戏」就能拿到绑定链接，分数会记在你的名字下。</p>
+          <button class="btn ghost hidden" id="loginBtn" type="button">注册 / 登录</button>
+          <button class="btn ghost hidden" id="claimBtn" type="button">换设备 / 换平台</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    <span>分数自动上到榜单 · 只记分数和名字</span>
+    <span class="dot">·</span>
+    <a id="healthLink" href="/api/health" target="_blank" rel="noreferrer">接口状态</a>
+  </footer>
+</div>
+
+<div class="gate hidden" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <div class="gate-card">
+    <div class="gate-head">
+      <span class="gate-logo" aria-hidden="true">🐖</span>
+      <div class="gate-head-text">
+        <h2 id="gateTitle">先落个户吧</h2>
+        <p id="gateSub">建一份猪农档案，换手机换浏览器都能找回成绩</p>
+      </div>
+    </div>
+
+    <div class="gate-tabs" id="gateTabs" role="tablist">
+      <button class="gate-tab active" id="tabRegister" data-mode="register" type="button" role="tab">注册</button>
+      <button class="gate-tab" id="tabLogin" data-mode="login" type="button" role="tab">登录</button>
+    </div>
+
+    <form id="gateForm" novalidate>
+      <label class="field">
+        <span>昵称</span>
+        <input id="gateName" type="text" maxlength="12" autocomplete="username" spellcheck="false" placeholder="2~12 个字，不能带空格">
+      </label>
+      <label class="field">
+        <span>口令</span>
+        <input id="gatePass" type="password" maxlength="32" autocomplete="current-password" placeholder="4~32 位，别告诉别人">
+      </label>
+      <p class="gate-msg hidden" id="gateMsg"></p>
+      <button class="btn gate-submit" id="gateSubmit" type="submit">注册并开玩</button>
+    </form>
+
+    <p class="gate-alt">
+      <button class="link-btn" id="gateGuest" type="button">先随便玩玩</button>
+      <span class="dot">·</span>
+      <button class="link-btn" id="gateClaim" type="button">我有迁移码</button>
+    </p>
+    <p class="gate-tip" id="gateTip">游客局的分数只留在这台设备上，不进排行榜。</p>
+  </div>
+</div>
+
+<div class="modal hidden" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal-card">
+    <h2 id="helpTitle">怎么玩</h2>
+    <ul class="rules">
+      <li>左右移动瞄准，松手把猪丢进罐子。</li>
+      <li>两块<b>同级</b>的猪撞在一起，就合成更高一级。</li>
+      <li>合成会连锁，位置叠得好一次能翻好几级。</li>
+      <li>猪堆顶到红线超过一秒，罐子就炸了。</li>
+      <li>两个 ✨ 猪神撞一起会一起升天，直接加 5000 分。</li>
+      <li>每头猪都是贴图，球越大图越大，凑齐九级就能升天。</li>
+    </ul>
+    <p class="chain-label">进化链</p>
+    <p class="chain" id="chainLine">🐽 → 🐷 → 🐖 → 🐗 → 🥓 → 🍢 → 🍔 → 👑 → ✨</p>
+    <button class="btn" id="helpClose" type="button">知道了</button>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="/physics.js"></script>
+<script src="/game.js"></script>
+</body>
+</html>

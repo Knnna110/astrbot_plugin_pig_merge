@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "display_name": "合成大猪猪",
+    "short_desc": "网页版合成游戏 + 面板管理台"
+  },
+  "views": {
+    "admin": {
+      "title": "猪猪管理台",
+      "description": "查看猪农档案与对局记录，调整游戏页端口、对外地址和发送设置。",
+      "heading": "合成大猪猪 · 管理台",
+      "refresh": "刷新"
+    }
+  }
+}

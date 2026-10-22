@@ -1,0 +1,2 @@
+# aiohttp（AstrBot 自带，一般不用额外装）
+aiohttp>=3.9

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# AstrBot 运行期产物（绝不能进仓库）
+data/
+config.json
+*.db
+*.sqlite3
+*.db-wal
+*.db-shm
+logs/
+
+# 系统
+.DS_Store
+Thumbs.db
+*.swp

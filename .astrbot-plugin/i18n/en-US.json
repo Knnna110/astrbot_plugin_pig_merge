@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "display_name": "Pig Merge",
+    "short_desc": "Browser-based pig merge game with an admin view"
+  },
+  "views": {
+    "admin": {
+      "title": "Pig Merge Admin",
+      "description": "Manage player profiles and runs, and tune the game server port and delivery settings.",
+      "heading": "Pig Merge · Admin",
+      "refresh": "Refresh"
+    }
+  }
+}

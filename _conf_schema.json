@@ -1,0 +1,78 @@
+{
+  "host": {
+    "description": "游戏页监听地址",
+    "hint": "一般填 0.0.0.0 就行，这样局域网和反向代理都能连上",
+    "type": "string",
+    "default": "0.0.0.0"
+  },
+  "port": {
+    "description": "游戏页端口",
+    "hint": "范围 6100~6110，默认 6100；被占用时自动往后顺延。改完记得放行防火墙",
+    "type": "int",
+    "default": 6100
+  },
+  "public_base_url": {
+    "description": "对外访问地址",
+    "hint": "群里发的链接用这个，例如 http://1.2.3.4:6100。留空则自动用本机内网 IP + 实际端口",
+    "type": "string",
+    "default": ""
+  },
+  "markdown_mode": {
+    "description": "Markdown 发送模式",
+    "hint": "auto：只有 QQ 官方机器人用原生 Markdown，其他平台自动降级纯文本；always：始终 Markdown；never：始终纯文本",
+    "type": "string",
+    "options": [
+      "auto",
+      "always",
+      "never"
+    ],
+    "default": "auto"
+  },
+  "board_size": {
+    "description": "榜单显示人数",
+    "hint": "聊天里报总榜时最多列多少人，3 ~ 20",
+    "type": "int",
+    "default": 10
+  },
+  "session_link": {
+    "description": "链接带上会话标记",
+    "hint": "打开后从群里点进去的链接会记住是哪个群，网页里能切「本群」榜",
+    "type": "bool",
+    "default": true
+  },
+  "allow_private": {
+    "description": "允许私聊要链接",
+    "hint": "关掉后只能在群聊里 @机器人 发「🐖游戏」",
+    "type": "bool",
+    "default": true
+  },
+  "submit_interval": {
+    "description": "同一玩家的交分间隔（秒）",
+    "hint": "防止连点刷榜，1.5 秒足够了",
+    "type": "float",
+    "default": 1.5
+  },
+  "keep_days": {
+    "description": "成绩保留天数",
+    "hint": "超过这个天数的单局记录会在启动时清掉，个人最高分保留",
+    "type": "int",
+    "default": 365
+  },
+  "default_theme": {
+    "description": "网页默认主题",
+    "hint": "auto 跟随系统，light 浅色，dark 深色；玩家本地切换后会记住自己的选择",
+    "type": "string",
+    "options": [
+      "auto",
+      "light",
+      "dark"
+    ],
+    "default": "auto"
+  },
+  "link_ttl": {
+    "description": "入口链接有效时长（秒）",
+    "hint": "群里发的链接只带一次性门票，默认 600 秒、点一次就作废。给 60~86400",
+    "type": "int",
+    "default": 600
+  }
+}

@@ -1,0 +1,13 @@
+name: astrbot_plugin_pig_merge
+display_name: 合成大猪猪
+desc: 网页版合成大猪猪：九级猪猪贴图球，浏览器里玩物理合成，支持深浅色、个人最高分、总榜/本群榜；@机器人 发「🐖游戏」拿一次性入口链接，未注册先登记用户名并绑定会话，换设备可用迁移码认领；面板内自带管理页，可管玩家、对局、端口
+version: 3.3.1
+author: DeepSeek娘
+repo: https://github.com/example/astrbot_plugin_pig_merge
+support_platforms:
+  - qq_official
+  - qq_official_webhook
+  - aiocqhttp
+  - telegram
+  - discord
+  - lark

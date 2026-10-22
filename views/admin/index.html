@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>合成大猪猪 · 管理台</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="page">
+  <header class="head">
+    <div class="title">
+      <span class="logo" aria-hidden="true">🐖</span>
+      <div>
+        <h1>合成大猪猪 · 管理台</h1>
+        <p class="sub" id="subtitle">正在连接面板…</p>
+      </div>
+    </div>
+    <div class="head-actions">
+      <span class="pill" id="servicePill">连接中</span>
+      <button class="btn ghost" id="restartBtn" type="button">重启游戏页</button>
+      <button class="btn" id="refreshBtn" type="button">刷新</button>
+    </div>
+  </header>
+
+  <section class="card service">
+    <div class="service-main">
+      <div class="service-item">
+        <span class="label">服务状态</span>
+        <strong id="svcState">—</strong>
+      </div>
+      <div class="service-item">
+        <span class="label">监听端口</span>
+        <strong id="svcPort">—</strong>
+      </div>
+      <div class="service-item wide">
+        <span class="label">对外地址</span>
+        <strong id="svcUrl" class="mono">—</strong>
+      </div>
+      <div class="service-item">
+        <span class="label">数据库</span>
+        <strong id="svcDb" class="mono small">—</strong>
+      </div>
+    </div>
+    <p class="service-note" id="svcNote"></p>
+  </section>
+
+  <section class="stats">
+    <div class="stat card">
+      <span class="label">猪农</span>
+      <strong id="statPlayers">—</strong>
+      <small>其中已绑定聊天 <span id="statBound">—</span></small>
+    </div>
+    <div class="stat card">
+      <span class="label">总局数</span>
+      <strong id="statRuns">—</strong>
+      <small>今天 <span id="statToday">—</span> 局</small>
+    </div>
+    <div class="stat card">
+      <span class="label">最高分</span>
+      <strong id="statTop">—</strong>
+      <small>全场最肥的一头</small>
+    </div>
+    <div class="stat card">
+      <span class="label">端口范围</span>
+      <strong id="statPortRange">6100–6110</strong>
+      <small>冲突自动顺延</small>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card players-card">
+      <div class="card-head">
+        <div>
+          <h2>猪农档案</h2>
+          <p class="hint">注册名是聊天里定的，昵称只用于展示。</p>
+        </div>
+        <div class="search">
+          <input id="searchInput" type="search" placeholder="搜名字 / 群号 / UMO" spellcheck="false">
+          <button class="btn small" id="searchBtn" type="button">搜</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>猪农</th>
+              <th class="num">最高分</th>
+              <th class="num">局数</th>
+              <th>绑定会话</th>
+              <th>最近活跃</th>
+              <th class="ops">操作</th>
+            </tr>
+          </thead>
+          <tbody id="playerRows">
+            <tr><td colspan="6" class="empty">正在读档案…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-foot">
+        <span id="playerCount">—</span>
+        <button class="btn ghost small" id="morePlayers" type="button" hidden>再看 100 条</button>
+      </div>
+    </div>
+
+    <div class="card settings-card">
+      <div class="card-head">
+        <div>
+          <h2>运行设置</h2>
+          <p class="hint">端口改完会立刻重启游戏页。</p>
+        </div>
+      </div>
+      <form id="configForm" class="form" autocomplete="off">
+        <label class="field">
+          <span>游戏端口 <em>6100–6110</em></span>
+          <input id="cfgPort" type="number" min="6100" max="6110" step="1" required>
+        </label>
+        <label class="field">
+          <span>对外地址 <em>群里发的链接</em></span>
+          <input id="cfgUrl" type="text" placeholder="http://1.2.3.4:6100" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>监听地址</span>
+          <input id="cfgHost" type="text" placeholder="0.0.0.0" spellcheck="false">
+        </label>
+        <div class="row">
+          <label class="field">
+            <span>榜单人数</span>
+            <input id="cfgBoard" type="number" min="3" max="20" step="1">
+          </label>
+          <label class="field">
+            <span>交分间隔（秒）</span>
+            <input id="cfgInterval" type="number" min="0" max="60" step="0.5">
+          </label>
+        </div>
+        <label class="field">
+          <span>Markdown 模式</span>
+          <select id="cfgMd">
+            <option value="auto">auto · 官方平台用 Markdown，其余降级纯文本</option>
+            <option value="always">always · 始终 Markdown</option>
+            <option value="never">never · 始终纯文本</option>
+          </select>
+        </label>
+        <label class="check">
+          <input id="cfgPrivate" type="checkbox">
+          <span>允许私聊要链接</span>
+        </label>
+        <label class="check">
+          <input id="cfgSession" type="checkbox">
+          <span>链接里带会话标记（网页可看本群榜）</span>
+        </label>
+        <button class="btn block" id="saveBtn" type="submit">保存设置</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="card runs-card">
+    <div class="card-head">
+      <div>
+        <h2>最近对局</h2>
+        <p class="hint">最新 30 条，展示最近活跃的猪农。</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>猪农</th>
+            <th class="num">分数</th>
+            <th>最肥一头</th>
+            <th class="num">合成</th>
+            <th class="num">时长</th>
+            <th>会话</th>
+            <th>时间</th>
+          </tr>
+        </thead>
+        <tbody id="runRows">
+          <tr><td colspan="7" class="empty">正在读对局…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span id="footVersion">合成大猪猪</span>
+    <span class="dot">·</span>
+    <span id="footPort">端口 —</span>
+  </footer>
+</div>
+
+<div class="toast hidden" id="toast" role="status"></div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
