@@ -1011,3 +1011,142 @@ body.has-bg::before {
   border-radius: 999px;
   vertical-align: middle;
 }
+
+/* ================= 彩蛋：左上角那只猪 ================= */
+
+#pigEgg {
+  position: relative;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#pigEgg .egg-face {
+  display: block;
+  line-height: 1;
+  transform-origin: 50% 50%;
+  transition: transform 0.34s cubic-bezier(0.3, 0.8, 0.4, 1), filter 0.34s ease;
+}
+
+/* 挨打：快速抖一下 */
+#pigEgg.hit .egg-face {
+  animation: eggHit 0.22s ease;
+}
+
+@keyframes eggHit {
+  0%, 100% { transform: none; }
+  25% { transform: translate(-2px, 1px) rotate(-7deg); }
+  60% { transform: translate(2px, -1px) rotate(6deg); }
+}
+
+/* 血扣光：变红、顺时针转 90° */
+#pigEgg.dead .egg-face {
+  transform: rotate(90deg);
+  filter: grayscale(1) brightness(0.6) sepia(1) saturate(9) hue-rotate(-40deg)
+    drop-shadow(0 0 6px rgba(255, 64, 64, 0.65));
+}
+
+/* 图标最后消失 */
+#pigEgg.gone {
+  opacity: 0;
+  transform: scale(0.55);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+/* 像素风血条：贴在图标下方淡入 */
+.pig-hp {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 5px;
+  border-radius: 7px;
+  background: rgba(16, 18, 24, 0.66);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.pig-hp.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.pig-hp .hp-heart {
+  position: relative;
+  display: block;
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.pig-hp svg {
+  display: block;
+  width: 13px;
+  height: 13px;
+}
+
+.pig-hp .hp-empty {
+  fill: rgba(24, 20, 26, 0.85);
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 0.8;
+}
+
+.pig-hp .hp-cut {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 0;
+  overflow: hidden;
+  transition: width 0.16s ease;
+}
+
+.pig-hp .hp-full {
+  fill: #ff4a4a;
+  filter: drop-shadow(0 0 1.5px rgba(255, 90, 90, 0.7));
+}
+
+/* 残血时血条整体泛红抖一下 */
+.pig-hp.low .hp-full {
+  fill: #ff2f2f;
+}
+
+/* 白雾粒子 */
+.egg-smoke {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 29;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.5) 45%, rgba(255, 255, 255, 0) 72%);
+  animation: eggPuff 0.85s ease-out forwards;
+}
+
+@keyframes eggPuff {
+  from {
+    transform: translate(0, 0) scale(0.35);
+    opacity: 0.95;
+  }
+  to {
+    transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(var(--sc, 1.4));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pigEgg .egg-face { transition-duration: 0.01s; }
+  #pigEgg.hit .egg-face { animation: none; }
+  .egg-smoke { animation-duration: 0.5s; }
+}

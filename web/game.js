@@ -276,6 +276,39 @@
     osc.stop(t0 + dur + 0.03);
   }
 
+  // 一小段带包络的噪声，用来做「呼噜 / 噗」这种非乐音的声音
+  function noise(opts) {
+    if (!sound.on) return;
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === 'suspended' && ctx.resume) {
+      try { ctx.resume(); } catch (e) { /* ignore */ }
+    }
+    var t0 = ctx.currentTime;
+    var dur = Math.max(0.04, opts.dur);
+    var len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    }
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = opts.q || 1.4;
+    filter.frequency.setValueAtTime(Math.max(80, opts.from || 800), t0);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(60, opts.to || 300), t0 + dur);
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(opts.vol || 0.1, t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(sound.master);
+    src.start(t0);
+    src.stop(t0 + dur + 0.02);
+  }
+
   var sfx = {
     drop: function () { beep({ type: 'sine', from: 280, to: 130, dur: 0.1, vol: 0.1 }); },
     land: function (power) {
@@ -294,7 +327,19 @@
         }, i * 90);
       });
     },
-    over: function () { beep({ type: 'sawtooth', from: 300, to: 80, dur: 0.65, vol: 0.09 }); }
+    over: function () { beep({ type: 'sawtooth', from: 300, to: 80, dur: 0.65, vol: 0.09 }); },
+    // 猪挨打：闷闷的一声「哼」，低频锯齿打底 + 一点带通噪声
+    pigHurt: function () {
+      beep({ type: 'sawtooth', from: 215, to: 108, dur: 0.15, vol: 0.1 });
+      beep({ type: 'square', from: 118, to: 78, dur: 0.17, vol: 0.045 });
+      noise({ from: 950, to: 260, dur: 0.14, vol: 0.065, q: 2.2 });
+    },
+    // 猪倒下：一声拖长的哀嚎，频率掉得更低
+    pigDie: function () {
+      beep({ type: 'sawtooth', from: 190, to: 58, dur: 0.52, vol: 0.1 });
+      beep({ type: 'square', from: 96, to: 42, dur: 0.56, vol: 0.045 });
+      noise({ from: 760, to: 130, dur: 0.5, vol: 0.07, q: 1.5 });
+    }
   };
 
   function applySound(on) {
@@ -1144,6 +1189,132 @@
     }
   }
 
+  /* ================= 彩蛋：左上角那只猪 ================= */
+
+  // 前 3 下点它没有任何反应。第 4 下亮出像素风血条（MC 里猪是 10 点血 = 5 颗心），
+  // 之后每点一下掉 1 点血、响一声挨打的哼唧；血扣光后变红、顺时针转 90°、
+  // 一团白雾加一声倒地音效，然后图标消失。刷新页面才会重新出现。
+
+  var HEART_PATH = 'M12 21.3C9.2 19.2 3 14.7 3 9.9 3 6.6 5.4 4.4 8.4 4.4c1.5 0 2.8.7 3.6 1.8.8-1.1 2.1-1.8 3.6-1.8 3 0 5.4 2.2 5.4 5.5 0 4.8-6.2 9.3-9 11.4z';
+
+  var egg = {
+    el: null,
+    bar: null,
+    clicks: 0,
+    hearts: 5,
+    maxHp: 10,
+    hp: 10,
+    shown: false,
+    dead: false
+  };
+
+  function heartNode() {
+    var node = document.createElement('i');
+    node.className = 'hp-heart';
+    node.innerHTML = '<svg class="hp-empty" viewBox="0 0 24 24" aria-hidden="true"><path d="' + HEART_PATH + '"/></svg>' +
+      '<span class="hp-cut"><svg class="hp-full" viewBox="0 0 24 24" aria-hidden="true"><path d="' + HEART_PATH + '"/></svg></span>';
+    return node;
+  }
+
+  function buildEggBar() {
+    var bar = document.createElement('span');
+    bar.className = 'pig-hp';
+    for (var i = 0; i < egg.hearts; i++) bar.appendChild(heartNode());
+    return bar;
+  }
+
+  // 每颗心 2 点血，一颗心可以只亮一半
+  function paintEggHp() {
+    if (!egg.bar) return;
+    var cuts = egg.bar.querySelectorAll('.hp-cut');
+    for (var i = 0; i < cuts.length; i++) {
+      var left = clamp(egg.hp - i * 2, 0, 2);
+      cuts[i].style.width = (left / 2) * 100 + '%';
+    }
+    if (egg.hp <= 4) egg.bar.classList.add('low');
+    else egg.bar.classList.remove('low');
+  }
+
+  function puffSmoke(host, count, spread) {
+    for (var i = 0; i < count; i++) {
+      var p = document.createElement('span');
+      p.className = 'egg-smoke';
+      var ang = Math.random() * Math.PI * 2;
+      var dist = (0.4 + Math.random() * 0.6) * spread;
+      p.style.setProperty('--dx', (Math.cos(ang) * dist).toFixed(1) + 'px');
+      p.style.setProperty('--dy', (Math.sin(ang) * dist - spread * 0.25).toFixed(1) + 'px');
+      p.style.setProperty('--sc', (1.1 + Math.random() * 1.6).toFixed(2));
+      p.style.animationDelay = Math.round(Math.random() * 120) + 'ms';
+      host.appendChild(p);
+      (function (el) {
+        setTimeout(function () {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }, 1100);
+      })(p);
+    }
+  }
+
+  function eggShake() {
+    if (!egg.el) return;
+    egg.el.classList.remove('hit');
+    void egg.el.offsetWidth; // 强制回流，动画才能重播
+    egg.el.classList.add('hit');
+  }
+
+  function eggDie() {
+    egg.dead = true;
+    if (egg.bar) egg.bar.classList.remove('show');
+    egg.el.classList.remove('hit');
+    egg.el.classList.add('dead');
+    sfx.pigDie();
+    puffSmoke(egg.el, 20, 26);
+    setTimeout(function () {
+      if (egg.bar && egg.bar.parentNode) egg.bar.parentNode.removeChild(egg.bar);
+    }, 900);
+    setTimeout(function () {
+      if (!egg.el) return;
+      egg.el.classList.add('gone');
+      setTimeout(function () {
+        if (egg.el && egg.el.parentNode) egg.el.parentNode.removeChild(egg.el);
+      }, 320);
+    }, 880);
+  }
+
+  function eggClick() {
+    if (!egg.el || egg.dead) return;
+    ensureAudio(); // 这一下是用户手势，顺手把音频上下文唤醒
+    egg.clicks++;
+    if (egg.clicks <= 3) return;
+
+    if (!egg.shown) {
+      egg.shown = true;
+      egg.bar = buildEggBar();
+      egg.el.appendChild(egg.bar);
+      paintEggHp();
+      requestAnimationFrame(function () {
+        if (egg.bar) egg.bar.classList.add('show');
+      });
+      return;
+    }
+
+    if (egg.hp <= 0) return;
+    egg.hp--;
+    paintEggHp();
+    sfx.pigHurt();
+    eggShake();
+    if (egg.hp <= 0) eggDie();
+  }
+
+  function initPigEgg() {
+    var el = $('pigEgg');
+    if (!el) return;
+    egg.el = el;
+    el.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      eggClick();
+    });
+  }
+
   /* ================= 启动 ================= */
 
   /* ================= 身份门：注册 / 登录 ================= */
@@ -1546,6 +1717,7 @@
     });
 
     bindInputs();
+    initPigEgg();
     bindGate();
     setupCanvas();
     newGame();

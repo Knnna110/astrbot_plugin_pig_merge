@@ -50,7 +50,7 @@ except Exception:  # pragma: no cover
 
 
 PLUGIN_NAME = "astrbot_plugin_pig_merge"
-PLUGIN_VERSION = "3.5.0"
+PLUGIN_VERSION = "3.5.1"
 
 MD_PLATFORMS = {"qq_official", "qq_official_webhook"}
 

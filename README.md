@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/AstrBot-%E2%89%A54.16-4a6cf7" alt="AstrBot >=4.16">
-  <img src="https://img.shields.io/badge/version-3.5.0-orange" alt="3.5.0">
+  <img src="https://img.shields.io/badge/version-3.5.1-orange" alt="3.5.1">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
 </p>
 
